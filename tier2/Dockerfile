@@ -1,4 +1,4 @@
-FROM vnoj/runtimes-tier1
+FROM vuthanhtrung2010/runtimes-tier1
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
