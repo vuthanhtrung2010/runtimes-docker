@@ -9,4 +9,4 @@ RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/reposit
     mkdir -p /etc/perl && \
     adduser -D -s /bin/sh judge
 
-ENTRYPOINT ["/sbin/tini", "/code/run"]
+ENTRYPOINT ["/sbin/tini", "--", "sh", "/code/run"]
