@@ -23,6 +23,10 @@ jobs:
         run: make TAG=amd64-latest image-tier3
       - name: Test tier 3 Docker image
         run: make TAG=amd64-latest test-tier3
+      - name: Build tier icpc Docker image
+        run: make TAG=amd64-latest image-tiericpc
+      - name: Test tier icpc Docker image
+        run: make TAG=amd64-latest test-tiericpc
       - name: Push images to Docker
         if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/master'
         run: |
@@ -69,6 +73,10 @@ jobs:
         run: make TAG=aarch64-latest image-tier3
       - name: Test tier 3 Docker image
         run: make TAG=aarch64-latest test-tier3
+      - name: Build tier icpc Docker image
+        run: make TAG=aarch64-latest image-tiericpc
+      - name: Test tier icpc Docker image
+        run: make TAG=aarch64-latest test-tiericpc
       - name: Push images to Docker
         if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/master'
         run: |
