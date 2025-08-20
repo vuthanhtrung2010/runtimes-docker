@@ -1,58 +1,51 @@
-FROM vuthanhtrung2010/runtimes-tier1
+FROM tier1 AS tier2
+ARG TARGETARCH
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        jq apt-transport-https dirmngr gnupg ca-certificates xz-utils \
-        $([ "$(arch)" = x86_64 ] && echo libc6-dev-i386) \
-        openjdk-22-jdk-headless clang llvm ghc golang racket ruby scala nasm chicken-bin && \
-    ( export OPAMYES=1 OPAMJOBS=$(($(nproc) + 2)); \
-        apt-get install -y --no-install-recommends make m4 patch unzip libgmp-dev pkg-config && \
-        bash -c 'echo | sh <(curl -sL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh) --no-backup' && \
-        runuser -u judge -- opam init --shell-setup --disable-sandboxing --bare && \
-        runuser -u judge -- opam switch create dmoj --packages=ocaml.5.0.0,ocaml-option-flambda && \
-        runuser -u judge -- opam install base core stdio zarith && \
-        runuser -u judge -- opam clean && rm -rf ~judge/.opam/repo \
-    ) && \
-    if [ "$(arch)" = x86_64 ]; then PYPY_ARCH=linux64; else PYPY_ARCH="$(arch)"; fi && \
-    mkdir /opt/pypy2 && curl -L "$(curl https://pypy.org/download.html | grep "/pypy2.*$PYPY_ARCH" | head -n1 | cut -d'"' -f4)" | \
-        tar xj -C /opt/pypy2 --strip-components=1 && /opt/pypy2/bin/pypy -mcompileall && \
-        chmod a+rx /opt/pypy2/lib /opt/pypy2/lib/*.so* && \
-    rm -f /opt/pypy2/bin/python* && \
-    mkdir /opt/pypy3 && curl -L "$(curl https://pypy.org/download.html | grep "/pypy3.*$PYPY_ARCH" | head -n1 | cut -d'"' -f4)" | \
-        tar xj -C /opt/pypy3 --strip-components=1 && /opt/pypy3/bin/pypy -mcompileall && \
-    rm -f /opt/pypy3/bin/python* && \
-    runuser judge -c 'curl https://sh.rustup.rs -sSf | sh -s -- -y' && \
-        mkdir rust && ( \
-            cd rust && \
-            curl -sL https://raw.githubusercontent.com/VNOI-Admin/judge-server/master/dmoj/executors/RUST.py | \
-                sed '/^CARGO_TOML/,/^"""/!d;//d' > Cargo.toml && \
-            mkdir src && \
-            curl -sL https://raw.githubusercontent.com/VNOI-Admin/judge-server/master/dmoj/executors/RUST.py | \
-                sed '/^TEST_PROGRAM/,/^"""/!d;//d' > src/main.rs && \
-            chown -R judge: . && \
-            runuser -u judge /home/judge/.cargo/bin/cargo fetch \
-        ) && \
-        rm -rf rust && \
-    if [ "$(arch)" = x86_64 ]; then curl -fsS https://dlang.org/install.sh | bash -s dmd --path /opt/dlang \
-        && mv /opt/dlang/dmd-*/* /opt/dlang && rmdir /opt/dlang/dmd-*; fi && \
-    gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF && \
-    gpg --export --armor 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF > /usr/share/keyrings/mono-official-archive-keyring.asc && \
-    echo "deb [signed-by=/usr/share/keyrings/mono-official-archive-keyring.asc] https://download.mono-project.com/repo/debian stable-buster main" > \
-        /etc/apt/sources.list.d/mono-official-stable.list && \
-    curl https://dmoj.ca/dmoj-apt.key -o /usr/share/keyrings/dmoj-keyring.asc && \
-    echo 'deb [signed-by=/usr/share/keyrings/dmoj-keyring.asc] https://apt.dmoj.ca/ bullseye main' > /etc/apt/sources.list.d/dmoj.list && \
-    (echo 'Package: *'; echo 'Pin: origin download.mono-project.com'; echo 'Pin-Priority: 990') > /etc/apt/preferences.d/mono && \
-    apt-get update && \
-    dpkg-divert --package mono-roslyn --divert /usr/bin/chicken-csc --rename /usr/bin/csc && \
-    dpkg-divert --package mono-roslyn --divert /usr/bin/chicken-csi --rename /usr/bin/csi && \
-    (cd /tmp && \
-        apt download mono-roslyn && \
-        dpkg-deb -R mono-roslyn_*.deb roslyn/ && \
-        sed -i -e '/^Conflicts: chicken-bin/d' roslyn/DEBIAN/control && \
-        dpkg-deb -b roslyn mono-roslyn_no_conflict.deb && \
-        rm -rf roslyn/ && \
-        apt-get install -y --no-install-recommends mono-devel ./mono-roslyn_no_conflict.deb mono-vbnc fsharp v8dmoj && \
-        rm -f *.deb) && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# -------------------------
+# Install GCC 11 (from Ubuntu PPA builds)
+# -------------------------
+RUN set -eux; \
+    case "$TARGETARCH" in \
+      amd64) DEB_ARCH=amd64; GCC_BUILD=23596444 ;; \
+      arm64) DEB_ARCH=arm64; GCC_BUILD=23596445 ;; \
+      *) echo "Unsupported arch: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    GCC_URL="https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/ppa/+build/${GCC_BUILD}/+files"; \
+    for pkg in cpp-11 g++-11 gcc-11 gcc-11-base libasan6 libgcc-11-dev libstdc++-11-dev libtsan0; do \
+      curl -fsSL -O ${GCC_URL}/${pkg}_11.3.0-1ubuntu1~22.04_${DEB_ARCH}.deb; \
+    done && \
+    dpkg -i *.deb && rm -f *.deb
 
-ENV PATH="/opt/dlang/linux/bin64:/home/judge/.cargo/bin:/opt/pypy2/bin:/opt/pypy3/bin:/opt/dart-sdk/bin:${PATH}"
+# -------------------------
+# Install OpenJDK 8 (Temurin, pinned release)
+# -------------------------
+RUN set -eux; \
+    case "$TARGETARCH" in \
+      amd64) FILE="OpenJDK8U-jdk_x64_linux_hotspot_8u452b09.tar.gz" ;; \
+      arm64) FILE="OpenJDK8U-jdk_aarch64_linux_hotspot_8u452b09.tar.gz" ;; \
+      *) echo "Unsupported arch: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u452-b09/${FILE}" \
+      | tar -xz -C /opt && \
+    ln -s /opt/jdk8*/bin/* /usr/local/bin/
+
+# Install PyPy (3.11 v7.3.20)
+RUN case "$TARGETARCH" in \
+      amd64) PYPY_ARCH=linux64 ;; \
+      arm64) PYPY_ARCH=aarch64 ;; \
+      *) echo "Unsupported arch: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    echo "Installing PyPy for $PYPY_ARCH" && \
+    curl -fsSL "https://downloads.python.org/pypy/pypy3.11-v7.3.20-${PYPY_ARCH}.tar.bz2" \
+      | tar -xj -C /opt && \
+    PYPY_DIR=$(find /opt -maxdepth 1 -type d -name "pypy3.11-v7.3.20-*") && \
+    ln -s "${PYPY_DIR}/bin/pypy3" /usr/local/bin/pypy3 && \
+    ln -s "${PYPY_DIR}/bin/pip3" /usr/local/bin/pip3 && \
+    pypy3 -m ensurepip && \
+    pip3 install --upgrade pip setuptools wheel
+
+# -------------------------
+# Final user + entrypoint
+# -------------------------
+RUN useradd -m judge
+ENTRYPOINT ["/usr/bin/tini", "--", "/code/run"]
