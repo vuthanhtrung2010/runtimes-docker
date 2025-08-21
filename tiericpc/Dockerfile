@@ -10,16 +10,18 @@ RUN apt-get update && \
         $([ "$(arch)" = aarch64 ] && echo binutils-arm-linux-gnueabihf) && \
     rm -rf /var/lib/apt/lists/*
 
-# --- Install OpenJDK 17 manually from Launchpad PPA builds ---
+# --- Install OpenJDK 17 (Adoptium Temurin) ---
 RUN if [ "$(arch)" = x86_64 ]; then \
-        DEB_ARCH=amd64 && OPENJDK_BUILD=24567508; \
+        JDK_ARCH=x64; \
     else \
-        DEB_ARCH=arm64 && OPENJDK_BUILD=24567509; \
+        JDK_ARCH=aarch64; \
     fi && \
-    OPENJDK_FILES_URL="https://launchpad.net/~openjdk-security/+archive/ubuntu/ppa/+build/$OPENJDK_BUILD/+files" && \
-    curl -LO $OPENJDK_FILES_URL/openjdk-17-jdk-headless_17.0.5+8-2ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -LO $OPENJDK_FILES_URL/openjdk-17-jre-headless_17.0.5+8-2ubuntu1~22.04_$DEB_ARCH.deb && \
-    dpkg -i *.deb && rm -f *.deb
+    curl -L -o /tmp/openjdk.tar.gz https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.11+9/OpenJDK17U-jdk_${JDK_ARCH}_linux_hotspot_17.0.11_9.tar.gz && \
+    mkdir -p /opt/java && \
+    tar -xzf /tmp/openjdk.tar.gz -C /opt/java && \
+    rm /tmp/openjdk.tar.gz && \
+    ln -s /opt/java/jdk-17.0.11+9/bin/java /usr/bin/java && \
+    ln -s /opt/java/jdk-17.0.11+9/bin/javac /usr/bin/javac
 
 # --- Install GCC 11 manually from Toolchain PPA builds ---
 RUN if [ "$(arch)" = x86_64 ]; then \
