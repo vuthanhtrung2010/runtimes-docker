@@ -15,8 +15,9 @@ RUN echo deb http://deb.debian.org/debian/ bullseye main > /etc/apt/sources.list
     useradd -m judge
 
 # Install Kotlin (latest release from GitHub)
-RUN KOTLIN_LATEST_URL=$(curl -s https://api.github.com/repos/JetBrains/kotlin/releases/latest \
-        | grep "browser_download_url.*kotlin-compiler.*zip" | cut -d '"' -f 4) && \
+RUN set -eux; \
+    KOTLIN_LATEST_URL=$(curl -s https://api.github.com/repos/JetBrains/kotlin/releases/latest \
+        | grep -oP '"browser_download_url":\s*"\K[^"]*kotlin-compiler-[0-9.]+\.zip') && \
     curl -L -o kotlin.zip "$KOTLIN_LATEST_URL" && \
     unzip kotlin.zip && mv kotlinc /opt/kotlin && rm kotlin.zip
 ENV PATH="/opt/kotlin/bin:${PATH}"
