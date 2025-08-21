@@ -25,11 +25,9 @@ RUN mkdir -p /etc/apt/keyrings && \
     echo 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main' > /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
 
-# Groovy (latest stable binary from Apache archive)
+# Groovy (fixed version: 5.0.0-rc-1 from JFrog)
 RUN set -eux; \
-    VER=$(curl -s https://groovy.apache.org/download.html | \
-          grep -oP 'Apache Groovy \K[0-9]+\.[0-9]+\.[0-9]+' | head -n1); \
-    curl -fsSL -o /tmp/groovy.zip "https://archive.apache.org/dist/groovy/${VER}/distribution/apache-groovy-binary-${VER}.zip"; \
+    curl -fsSL -L "https://groovy.jfrog.io/artifactory/dist-release-local/groovy-zips/apache-groovy-binary-5.0.0-rc-1.zip" -o /tmp/groovy.zip; \
     unzip -q /tmp/groovy.zip -d /opt; \
     mv /opt/groovy-* /opt/groovy; \
     rm -f /tmp/groovy.zip
