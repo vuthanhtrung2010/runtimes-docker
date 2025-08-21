@@ -4,12 +4,15 @@ USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install extra system deps first (jq, unzip, ncurses, etc.)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    unzip xz-utils curl jq gnupg ca-certificates \
-    libtinfo5 libncurses5 \
-    gnucobol4 gnat gfortran tcl lua5.3 intercal php-cli gforth swi-prolog \
-    pike8.0 sbcl gnustep-devel algol68g \
-  && rm -rf /var/lib/apt/lists/*
+RUN echo "deb http://deb.debian.org/debian bullseye main" > /etc/apt/sources.list.d/bullseye.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+      unzip xz-utils curl jq gnupg ca-certificates \
+      libtinfo5 libncurses5 \
+      gnucobol4 gnat gfortran tcl lua5.3 php-cli gforth swi-prolog \
+      pike8.0 sbcl gnustep-devel algol68g \
+      intercal && \
+    rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/bullseye.list
 
 # --- Dart SDK (stable latest) ---
 RUN set -eux; \
