@@ -45,15 +45,19 @@ RUN curl -L -o kotlin.zip https://github.com/JetBrains/kotlin/releases/download/
     unzip kotlin.zip && mv kotlinc /opt/kotlin && rm kotlin.zip
 ENV PATH="/opt/kotlin/bin:${PATH}"
 
-# --- Install PyPy (from official binaries, supports amd64 & arm64) ---
-RUN if [ "$(arch)" = x86_64 ]; then \
-        PYPY_ARCH=linux64; \
-    else \
-        PYPY_ARCH=aarch64; \
-    fi && \
-    curl -L -o pypy.tar.bz2 https://downloads.python.org/pypy/pypy3.10-v7.3.11-$PYPY_ARCH.tar.bz2 && \
-    tar -xjf pypy.tar.bz2 -C /opt/ && rm pypy.tar.bz2 && \
-    ln -s /opt/pypy3.10-v7.3.11-$PYPY_ARCH/bin/pypy3 /usr/bin/pypy3
+# --- Install PyPy 3.11 (7.3.20) ---
+RUN case "$TARGETARCH" in \
+      amd64) PYPY_ARCH=linux64 ;; \
+      arm64) PYPY_ARCH=aarch64 ;; \
+      *) echo "Unsupported arch: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://downloads.python.org/pypy/pypy3.11-v7.3.20-${PYPY_ARCH}.tar.bz2" \
+      | tar -xj -C /opt && \
+    PYPY_DIR=$(find /opt -maxdepth 1 -type d -name "pypy3.11-v7.3.20-*") && \
+    ln -s "${PYPY_DIR}/bin/pypy3" /usr/local/bin/pypy3 && \
+    ln -s "${PYPY_DIR}/bin/pip3" /usr/local/bin/pip3 && \
+    pypy3 -m ensurepip && \
+    pip3 install --upgrade pip setuptools wheel
 
 # --- Cleanup & user ---
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* && \
