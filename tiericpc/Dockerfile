@@ -46,10 +46,10 @@ RUN curl -L -o kotlin.zip https://github.com/JetBrains/kotlin/releases/download/
 ENV PATH="/opt/kotlin/bin:${PATH}"
 
 # --- Install PyPy 3.11 (7.3.20) ---
-RUN case "$TARGETARCH" in \
-      amd64) PYPY_ARCH=linux64 ;; \
-      arm64) PYPY_ARCH=aarch64 ;; \
-      *) echo "Unsupported arch: $TARGETARCH" && exit 1 ;; \
+RUN case "$(dpkg --print-architecture)" in \
+      amd64)  PYPY_ARCH=linux64 ;; \
+      arm64)  PYPY_ARCH=aarch64 ;; \
+      *) echo "Unsupported arch: $(dpkg --print-architecture)" && exit 1 ;; \
     esac && \
     curl -fsSL "https://downloads.python.org/pypy/pypy3.11-v7.3.20-${PYPY_ARCH}.tar.bz2" \
       | tar -xj -C /opt && \
