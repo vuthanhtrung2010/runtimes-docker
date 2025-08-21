@@ -1,4 +1,4 @@
-FROM debian:sid
+FROM debian:sid-slim
 
 RUN echo deb http://deb.debian.org/debian/ bullseye main > /etc/apt/sources.list.d/bullseye.list && \
     echo deb http://security.debian.org/debian-security/ bullseye-security main >> /etc/apt/sources.list.d/bullseye.list && \
