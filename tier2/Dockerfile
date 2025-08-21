@@ -41,4 +41,4 @@ RUN useradd -m judge
 USER judge
 WORKDIR /home/judge
 
-# ENTRYPOINT ["/usr/bin/tini", "--", "/code/run"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/code/run"]
