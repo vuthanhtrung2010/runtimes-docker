@@ -1,59 +1,33 @@
-FROM ubuntu:jammy AS base
+FROM debian:sid-slim AS base
 
-RUN apt-get update && \
+# Add bullseye + experimental repos for compatibility
+RUN echo deb http://deb.debian.org/debian/ bullseye main > /etc/apt/sources.list.d/bullseye.list && \
+    echo deb http://security.debian.org/debian-security/ bullseye-security main >> /etc/apt/sources.list.d/bullseye.list && \
+    echo deb http://deb.debian.org/debian/ experimental main > /etc/apt/sources.list.d/experimental.list && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
-        curl file gcc g++ python3-full python3-pip python3-dev python3-setuptools python3-wheel cython3 libseccomp-dev bzip2 unzip \
+        curl file gcc g++ python3-full python3-pip python3-dev python3-setuptools python3-wheel cython3 \
+        libseccomp-dev bzip2 gzip unzip \
         fp-compiler tini ca-certificates-java \
-        $([ "$(arch)" = aarch64 ] && echo binutils-arm-linux-gnueabihf)
-
-RUN if [ "$(arch)" = x86_64 ]; then DEB_ARCH=amd64; else DEB_ARCH=arm64; fi && \
-    if [ "$(arch)" = x86_64 ]; then OPENJDK_BUILD=24567508; else OPENJDK_BUILD=24567509; fi && \
-    OPENJDK_FILES_URL="https://launchpad.net/~openjdk-security/+archive/ubuntu/ppa/+build/$OPENJDK_BUILD/+files" && \
-    curl -L -O $OPENJDK_FILES_URL/openjdk-17-jdk-headless_17.0.5+8-2ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -L -O $OPENJDK_FILES_URL/openjdk-17-jre-headless_17.0.5+8-2ubuntu1~22.04_$DEB_ARCH.deb && \
-    dpkg -i *.deb && rm *.deb
-
-RUN if [ "$(arch)" = x86_64 ]; then DEB_ARCH=amd64; else DEB_ARCH=arm64; fi && \
-    if [ "$(arch)" = x86_64 ]; then GCC_BUILD=23596444; else GCC_BUILD=23596445; fi && \
-    GCC_FILES_URL="https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/ppa/+build/$GCC_BUILD/+files" && \
-    curl -L -O $GCC_FILES_URL/cpp-11_11.3.0-1ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -L -O $GCC_FILES_URL/g++-11_11.3.0-1ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -L -O $GCC_FILES_URL/gcc-11_11.3.0-1ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -L -O $GCC_FILES_URL/gcc-11-base_11.3.0-1ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -L -O $GCC_FILES_URL/libasan6_11.3.0-1ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -L -O $GCC_FILES_URL/libgcc-11-dev_11.3.0-1ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -L -O $GCC_FILES_URL/libstdc++-11-dev_11.3.0-1ubuntu1~22.04_$DEB_ARCH.deb && \
-    curl -L -O $GCC_FILES_URL/libtsan0_11.3.0-1ubuntu1~22.04_$DEB_ARCH.deb && \
-    dpkg -i *.deb && rm *.deb
-
-RUN curl -L -okotlin.zip https://github.com/JetBrains/kotlin/releases/download/v1.7.21/kotlin-compiler-1.7.21.zip && \
-    unzip kotlin.zip && mv kotlinc /opt/kotlin && rm kotlin.zip
-
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* && \
+        openjdk-17-jdk-headless openjdk-17-jre-headless \
+        $([ "$(arch)" = aarch64 ] && echo binutils-arm-linux-gnueabihf) && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
     useradd -m judge
 
-FROM base AS build
-
-RUN apt-get update && apt-get install -y dpkg-dev devscripts equivs
-
-RUN mkdir /build-pypy3 && \
-    cd /build-pypy3 && \
-    curl -L -O https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/pypy3/7.3.10+dfsg-1/pypy3_7.3.10+dfsg-1.dsc && \
-    curl -L -O https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/pypy3/7.3.10+dfsg-1/pypy3_7.3.10+dfsg.orig-cpython27.tar.xz && \
-    curl -L -O https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/pypy3/7.3.10+dfsg-1/pypy3_7.3.10+dfsg.orig.tar.xz && \
-    curl -L -O https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/pypy3/7.3.10+dfsg-1/pypy3_7.3.10+dfsg-1.debian.tar.xz && \
-    dpkg-source -x pypy3_7.3.10+dfsg-1.dsc && \
-    cd pypy3-7.3.10+dfsg && \
-    mk-build-deps && apt-get install -y ./pypy3-build-deps_7.3.10+dfsg-1_all.deb && \
-    dpkg-buildpackage -us -uc -b
-
-FROM base AS main
-
-COPY --from=build /build-pypy3/pypy3-lib_7.3.10+dfsg-1_amd64.deb pypy3-lib_7.3.10+dfsg-1_amd64.deb
-COPY --from=build /build-pypy3/pypy3_7.3.10+dfsg-1_amd64.deb pypy3_7.3.10+dfsg-1_amd64.deb
-
-RUN dpkg -i pypy3-lib_7.3.10+dfsg-1_amd64.deb && dpkg -i pypy3_7.3.10+dfsg-1_amd64.deb && rm -rf *.deb
-
+# Install Kotlin (latest release from GitHub)
+RUN KOTLIN_LATEST_URL=$(curl -s https://api.github.com/repos/JetBrains/kotlin/releases/latest \
+        | grep "browser_download_url.*kotlin-compiler.*zip" | cut -d '"' -f 4) && \
+    curl -L -o kotlin.zip "$KOTLIN_LATEST_URL" && \
+    unzip kotlin.zip && mv kotlinc /opt/kotlin && rm kotlin.zip
 ENV PATH="/opt/kotlin/bin:${PATH}"
+
+# Install PyPy3 (latest prebuilt binary, like tier2)
+RUN if [ "$(arch)" = x86_64 ]; then PYPY_ARCH=linux64; else PYPY_ARCH="$(arch)"; fi && \
+    mkdir /opt/pypy3 && curl -L "$(curl https://pypy.org/download.html \
+        | grep "/pypy3.*$PYPY_ARCH" | head -n1 | cut -d'"' -f4)" \
+        | tar xj -C /opt/pypy3 --strip-components=1 && \
+    /opt/pypy3/bin/pypy -m compileall && \
+    rm -f /opt/pypy3/bin/python*
+ENV PATH="/opt/pypy3/bin:${PATH}"
 
 ENTRYPOINT ["/usr/bin/tini", "/code/run"]
