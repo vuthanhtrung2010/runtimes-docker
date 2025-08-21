@@ -36,7 +36,4 @@ RUN case "$TARGETARCH" in \
 # Add a non-root user
 RUN useradd -m judge
 
-USER judge
-WORKDIR /home/judge
-
 ENTRYPOINT ["/usr/bin/tini", "--", "/code/run"]
