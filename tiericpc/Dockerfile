@@ -4,7 +4,7 @@ FROM debian:bookworm-slim AS base
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl file gcc g++ make unzip \
-        python3 python3-pip python3-dev python3-setuptools python3-wheel cython3 \
+        python3 python3-pip python3-dev python3-setuptools python3-wheel python3-venv cython3 \
         libseccomp-dev bzip2 gzip \
         fp-compiler tini ca-certificates-java \
         $([ "$(arch)" = aarch64 ] && echo binutils-arm-linux-gnueabihf) && \
