@@ -3,7 +3,7 @@ FROM vuthanhtrung2010/runtimes-tier2
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
-# install pre-reqs (jq/unzip before they are used)
+# Install extra system deps first (jq, unzip, ncurses, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       unzip xz-utils curl jq gnupg ca-certificates \
       libtinfo5 libncurses5 \
@@ -19,20 +19,20 @@ RUN set -eux; \
     unzip -q /tmp/dart.zip -d /opt; rm -f /tmp/dart.zip; \
     chmod -R go+rx /opt/dart-sdk
 
-# Node.js 20 (nodesource)
+# Node.js 20 (NodeSource)
 RUN mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main' > /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
 
-# Groovy (fixed version: 5.0.0-rc-1 from JFrog)
+# Groovy (pin to JFrog 5.0.0-rc-1 to avoid regex fragility)
 RUN set -eux; \
     curl -fsSL -L "https://groovy.jfrog.io/artifactory/dist-release-local/groovy-zips/apache-groovy-binary-5.0.0-rc-1.zip" -o /tmp/groovy.zip; \
     unzip -q /tmp/groovy.zip -d /opt; \
     mv /opt/groovy-* /opt/groovy; \
     rm -f /tmp/groovy.zip
 
-# Kotlin (compiler)
+# Kotlin (compiler latest non-prerelease from GitHub)
 RUN curl -fsSL -o /tmp/kotlin.zip "$(curl -s https://api.github.com/repos/JetBrains/kotlin/releases | \
       jq -r '[.[] | select(.prerelease|not)][0].assets | map(select(.name|startswith("kotlin-compiler") and endswith(".zip")))[0].browser_download_url')" && \
     unzip -q /tmp/kotlin.zip -d /opt && mv /opt/kotlinc /opt/kotlin && rm -f /tmp/kotlin.zip
@@ -43,7 +43,7 @@ RUN if [ "$(arch)" = x86_64 ]; then \
       unzip -q /tmp/tprolog.zip -d /opt && rm -f /tmp/tprolog.zip; \
     fi
 
-# Zig (pinned 0.6.0 as you had)
+# Zig (0.6.0 pinned)
 RUN mkdir -p /opt/zig && \
     curl -fsSL "https://ziglang.org/download/0.6.0/zig-linux-$(arch)-0.6.0.tar.xz" | tar -xJ -C /opt/zig --strip-components=1
 
@@ -53,8 +53,5 @@ RUN if [ "$(arch)" = x86_64 ]; then \
         jq -r '[.[] | select(.prerelease|not)][0].assets | map(select(.name|endswith("-linux.zip")))[0].browser_download_url')" && \
       unzip -q /tmp/lean.zip -d /opt && mv /opt/lean-* /opt/lean && rm -f /tmp/lean.zip; \
     fi
-
-# clean up any leftovers
-RUN rm -rf /var/lib/apt/lists/* /tmp/*
 
 ENV PATH="/opt/tprolog:/opt/groovy/bin:/opt/kotlin/bin:${PATH}:/opt/swift/usr/bin:/opt/zig:/opt/lean/bin"
