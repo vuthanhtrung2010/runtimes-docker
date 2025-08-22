@@ -24,7 +24,7 @@ RUN (cd /opt && \
         curl -L -otprolog.zip "https://github.com/yingted/OpenTuring/releases/download/v1.0.0-beta/tprolog-v1.0.0-beta.zip" && \
             unzip tprolog.zip && mv tprolog /opt && rm tprolog.zip; fi && \
     mkdir /opt/zig && \
-        curl "https://ziglang.org/download/0.6.0/zig-linux-$(arch)-0.6.0.tar.xz" | tar xJ -C /opt/zig --strip-components=1 && \
+        curl "https://ziglang.org/download/0.15.1/zig-$(arch)-linux-0.15.1.tar.xz" | tar xJ -C /opt/zig --strip-components=1 && \
     if [ "$(arch)" = x86_64 ]; then \
         mkdir /opt/lean && \
         curl -L -olean.zip "$(curl -s https://api.github.com/repos/leanprover/lean4/releases | \
